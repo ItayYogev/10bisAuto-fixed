@@ -35,6 +35,16 @@ An automated system for managing 10bis credit loading and token refresh operatio
 
 ### Scheduling reliability and payment safety
 
+Comparison repositories: `10bisAuto` remains the unchanged original.
+`10bisAuto-keep-alive` preserves original payment code with only Keep Alive repaired.
+`10bisAuto-upstream-latest` explicitly snapshots upstream commit `d503933`
+(2026-03-04), which already includes the 2025-11-02 loading fix and matches the
+original payment code. Those variants retain 07:05 UTC Sunday-Thursday loading.
+Only this `10bisAuto-fixed` variant has the daily attempt guard and frequent window
+below. Guards do not coordinate across repositories: all four may charge the
+same account. Shared authentication refreshes may interfere. Check each repository's
+Actions > Load Credit steps and actual balance; Keep Alive success is not payment evidence.
+
 - [Load Credit](.github/workflows/load-credit.yml) requests an automatic run every
   five minutes, Sunday-Thursday, across 06:00-15:55 UTC to cover both Israel UTC
   offsets. Both the history guard and payment script enforce **09:00 inclusive

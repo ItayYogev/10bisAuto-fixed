@@ -1,4 +1,4 @@
-name: Provision authorized Keep Alive repository
+name: Provision authorized upstream snapshot
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       - name: Encrypt and copy authorized settings to the new repository
         env:
-          TARGET_TOKEN: ${{ secrets.KEEP_ALIVE_TARGET_TOKEN }}
+          TARGET_TOKEN: ${{ secrets.UPSTREAM_TARGET_TOKEN }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           AMOUNT: ${{ secrets.AMOUNT }}
@@ -41,7 +41,7 @@ jobs:
             }
             await sodium.ready;
             const github = new Octokit({ auth: process.env.TARGET_TOKEN });
-            const repo = { owner: 'ItayYogev', repo: '10bisAuto-keep-alive' };
+            const repo = { owner: 'ItayYogev', repo: '10bisAuto-upstream-latest' };
             const { data: publicKey } = await github.rest.actions.getRepoPublicKey(repo);
             for (const name of names) {
               const encrypted = sodium.crypto_box_seal(
