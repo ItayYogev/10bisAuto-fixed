@@ -4,22 +4,24 @@ const utils = require('./github-actions-utils');
 const CreditLoader = require('./github-load-credit');
 const TokenRefresh = require('./github-refresh-token');
 const { guardCreditRun, israelDate } = require('./.github/scripts/credit-run-guard');
-const { isCreditWindowOpen, TEST_SCHEDULE } = require('./.github/scripts/credit-test-window');
+const { isCreditWindowOpen } = require('./.github/scripts/credit-window');
 
-test('one-day automatic test allows only 17:10 inclusive through 18:00 exclusive Israel time', () => {
-    for (const schedule of [undefined, TEST_SCHEDULE, '17 7,10,13 * * 0,1,2,3,4']) {
-        assert.equal(isCreditWindowOpen(new Date('2026-11-03T17:09:59+02:00'), schedule), false);
-        assert.equal(isCreditWindowOpen(new Date('2026-11-03T17:10:00+02:00'), schedule), true);
-        assert.equal(isCreditWindowOpen(new Date('2026-11-03T17:59:59+02:00'), schedule), true);
-        assert.equal(isCreditWindowOpen(new Date('2026-11-03T18:00:00+02:00'), schedule), false);
-        assert.equal(isCreditWindowOpen(new Date('2026-11-03T23:59:59+02:00'), schedule), false);
+test('daily window enforces 09:00 inclusive to 18:00 exclusive in winter and summer', () => {
+    for (const [day, offset] of [['2026-11-03', '+02:00'], ['2026-07-01', '+03:00']]) {
+        for (const [time, expected] of [['08:59:59', false], ['09:00:00', true],
+            ['17:59:59', true], ['18:00:00', false], ['23:59:59', false]]) {
+            assert.equal(isCreditWindowOpen(new Date(`${day}T${time}${offset}`)), expected);
+        }
     }
 });
 
-test('late test runs cannot pay the following day or recur the following year', () => {
-    for (const date of ['2026-11-04T09:17:00+02:00', '2027-11-03T17:15:00+02:00']) {
-        assert.equal(isCreditWindowOpen(new Date(date), TEST_SCHEDULE), false);
-        assert.equal(isCreditWindowOpen(new Date(date), '17 7,10,13 * * 0,1,2,3,4'), true);
+test('daily window rejects Israel weekends and respects DST changes', () => {
+    for (const date of ['2026-11-06T10:00:00+02:00', '2026-11-07T10:00:00+02:00']) {
+        assert.equal(isCreditWindowOpen(new Date(date)), false);
+    }
+    for (const date of ['2026-11-08T09:00:00+02:00', '2026-03-29T09:00:00+03:00',
+        '2026-10-25T09:00:00+02:00']) {
+        assert.equal(isCreditWindowOpen(new Date(date)), true);
     }
     assert.throws(() => isCreditWindowOpen(new Date('invalid')), /Invalid credit window time/);
 });
@@ -85,7 +87,7 @@ function mockUtils(t) {
     t.mock.method(utils, 'getConfig', () => config);
     t.mock.method(utils, 'isWeekend', () => false);
     t.mock.method(CreditLoader.prototype, 'initializeTeamsWebhook', async () => {});
-    t.mock.method(require('./.github/scripts/credit-test-window'), 'isCreditWindowOpen', () => true);
+    t.mock.method(require('./.github/scripts/credit-window'), 'isCreditWindowOpen', () => true);
     return config;
 }
 
@@ -97,21 +99,20 @@ test('allows the first daily run and queries paginated history', async () => {
     assert.match(fixture.calls[0].created, /^>=/);
 });
 
-test('automatic test outside its window skips before querying history', async () => {
+test('outside the daily window skips before querying history', async () => {
     const fixture = guardFixture();
-    fixture.context.payload = { schedule: TEST_SCHEDULE };
-    for (const time of ['2026-11-03T15:09:59Z', '2026-11-03T16:00:00Z', '2026-11-04T15:15:00Z']) {
+    for (const time of ['2026-11-03T06:59:59Z', '2026-11-03T16:00:00Z', '2026-11-06T10:00:00Z']) {
         fixture.now = new Date(time);
         assert.equal(await guardCreditRun(fixture), false);
     }
     assert.equal(fixture.calls.length, 0);
-    fixture.now = new Date('2026-11-03T15:10:00Z');
+    fixture.now = new Date('2026-11-03T07:00:00Z');
     assert.equal(await guardCreditRun(fixture), true);
 });
 
 test('late payment startup fails before sending a payment request', async t => {
     mockUtils(t);
-    require('./.github/scripts/credit-test-window').isCreditWindowOpen.mock.mockImplementation(() => false);
+    require('./.github/scripts/credit-window').isCreditWindowOpen.mock.mockImplementation(() => false);
     const request = t.mock.method(utils, 'makeHttpRequest', async () => ({ status: 200 }));
     await assert.rejects(new CreditLoader().loadCredit(), /Payment not sent/);
     assert.equal(request.mock.calls.length, 0);

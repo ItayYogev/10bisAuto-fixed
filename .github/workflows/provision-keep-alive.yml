@@ -1,0 +1,59 @@
+name: Provision authorized Keep Alive repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: token-operations
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    if: github.repository == 'ItayYogev/10bisAuto-fixed' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+      - run: npm ci
+      - name: Encrypt and copy authorized settings to the new repository
+        env:
+          TARGET_TOKEN: ${{ secrets.KEEP_ALIVE_TARGET_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          AMOUNT: ${{ secrets.AMOUNT }}
+          MONEYCARD_ID: ${{ secrets.MONEYCARD_ID }}
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          node <<'NODE'
+          const { Octokit } = require('@octokit/rest');
+          const sodium = require('libsodium-wrappers');
+          (async () => {
+            const names = ['ACCESS_TOKEN', 'REFRESH_TOKEN', 'AMOUNT', 'MONEYCARD_ID', 'TEAMS_WEBHOOK_URL'];
+            for (const name of ['TARGET_TOKEN', ...names]) {
+              if (!process.env[name]) throw new Error(`Missing required secret: ${name}`);
+            }
+            await sodium.ready;
+            const github = new Octokit({ auth: process.env.TARGET_TOKEN });
+            const repo = { owner: 'ItayYogev', repo: '10bisAuto-keep-alive' };
+            const { data: publicKey } = await github.rest.actions.getRepoPublicKey(repo);
+            for (const name of names) {
+              const encrypted = sodium.crypto_box_seal(
+                Buffer.from(process.env[name]), Buffer.from(publicKey.key, 'base64'));
+              await github.rest.actions.createOrUpdateRepoSecret({
+                ...repo, secret_name: name, key_id: publicKey.key_id,
+                encrypted_value: Buffer.from(encrypted).toString('base64')
+              });
+              console.log(`Configured ${name}`);
+            }
+          })().catch(() => {
+            console.error('Secret provisioning failed; inspect permissions and secret presence. Values are not logged.');
+            process.exitCode = 1;
+          });
+          NODE

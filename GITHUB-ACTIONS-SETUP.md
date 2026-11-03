@@ -138,7 +138,7 @@ Once you've added all secrets, the GitHub Actions will start running automatical
 ### Automatic Scheduling
 
 - **Token Refresh**: Runs before loading; the standalone workflow is manual only
-- **Credit Loading**: Scheduled Sunday-Thursday at 07:17, 10:17 and 13:17 UTC,
+- **Credit Loading**: Scheduled every five minutes Sunday-Thursday, gated to 09:00-18:00 Israel time,
   guarded against another payment attempt on the same Israel date
 - **Weekend Skip**: Automatically skips Friday and Saturday
 
@@ -264,7 +264,7 @@ Keep the daily guard and workflow concurrency enabled:
 ```yaml
 on:
   schedule:
-    - cron: '17 7,10,13 * * 0,1,2,3,4'
+    - cron: '*/5 6-15 * * 0-4'
 ```
 
 ### Adding Notifications

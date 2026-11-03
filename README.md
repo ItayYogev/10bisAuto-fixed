@@ -35,19 +35,16 @@ An automated system for managing 10bis credit loading and token refresh operatio
 
 ### Scheduling reliability and payment safety
 
-- One-day automatic test on **2026-11-03**: schedule opportunities every five
-  minutes from **17:10 through 17:55 Israel time** (15:10-15:55 UTC).
-  Both the history guard and the payment script reject requests outside
-  17:10 inclusive to 18:00 exclusive on that date, including delayed regular
-  runs. The test cron is rejected on all other dates, including future years.
-  Normal daily schedules resume on subsequent dates. No manual dispatch is needed.
-  The existing daily attempt guard still applies: an uncertain payment is never
-  replayed automatically. GitHub may delay/drop every opportunity; this is not
-  a guarantee of payment by 18:00. An already-sent request may finish after 18:00.
-- [Load Credit](.github/workflows/load-credit.yml) is scheduled at 07:17, 10:17 and
-  13:17 UTC, Sunday-Thursday. These are 09:17/12:17/15:17 in Israel in winter,
-  and 10:17/13:17/16:17 in summer. GitHub may delay or drop scheduled runs;
-  fallback schedules improve resilience but cannot guarantee a daily run.
+- [Load Credit](.github/workflows/load-credit.yml) requests an automatic run every
+  five minutes, Sunday-Thursday, across 06:00-15:55 UTC to cover both Israel UTC
+  offsets. Both the history guard and payment script enforce **09:00 inclusive
+  to 18:00 exclusive in Asia/Jerusalem**, including DST and weekend checks.
+  Extra UTC opportunities outside that local window skip without refreshing tokens
+  or loading money. This replaces the one-day test schedule.
+  GitHub may delay or drop runs; more opportunities do not guarantee execution.
+  No new payment request starts at or after 18:00, but a request already sent may
+  complete later. Runner usage increases; disable the separate diagnostic once
+  scheduling evidence has been collected.
 - The workflows remain serialized with token refresh. Before loading, the guard
   checks prior payment steps (including reruns), using the Israel calendar date.
   A successful payment blocks another load even if a later log-upload step failed.
@@ -344,7 +341,7 @@ The system interacts with these 10bis API endpoints:
 ## Schedule Details
 
 - **Token Refresh**: Immediately before loading; standalone refresh is manual
-- **Credit Loading**: Sunday-Thursday at 07:17, 10:17 and 13:17 UTC, subject to the daily guard
+- **Credit Loading**: Every five minutes Sunday-Thursday, gated to 09:00-18:00 Israel time and one daily payment attempt
 - **Weekend Skip**: Automatically skips Friday and Saturday
 
 ## Support

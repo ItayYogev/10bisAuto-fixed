@@ -2,10 +2,8 @@ name: Load Credit
 
 on:
   schedule:
-    # Primary and fallback opportunities; GitHub schedules are best-effort, in UTC.
-    - cron: "17 7,10,13 * * 0,1,2,3,4"
-    # One-day test: 2026-11-03, 17:10-17:55 Israel time; runtime guards reject late delivery.
-    - cron: "10,15,20,25,30,35,40,45,50,55 15 3 11 *"
+    # Cover both Israel UTC offsets; runtime guards enforce 09:00-18:00 local time.
+    - cron: "*/5 6-15 * * 0-4"
   workflow_dispatch: # Allow manual triggering
 
 permissions:
@@ -19,7 +17,6 @@ concurrency:
 
 env:
   TZ: Asia/Jerusalem
-  TRIGGER_SCHEDULE: ${{ github.event.schedule }}
   # Already loaded manually on the rollout day. Future manual loads can be excluded via the repository variable.
   CREDIT_SKIP_DATES: "2026-11-02,${{ vars.CREDIT_SKIP_DATES }}"
 
