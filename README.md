@@ -35,6 +35,15 @@ An automated system for managing 10bis credit loading and token refresh operatio
 
 ### Scheduling reliability and payment safety
 
+- One-day automatic test on **2026-11-03**: schedule opportunities every five
+  minutes from **17:10 through 17:55 Israel time** (15:10-15:55 UTC).
+  Both the history guard and the payment script reject requests outside
+  17:10 inclusive to 18:00 exclusive on that date, including delayed regular
+  runs. The test cron is rejected on all other dates, including future years.
+  Normal daily schedules resume on subsequent dates. No manual dispatch is needed.
+  The existing daily attempt guard still applies: an uncertain payment is never
+  replayed automatically. GitHub may delay/drop every opportunity; this is not
+  a guarantee of payment by 18:00. An already-sent request may finish after 18:00.
 - [Load Credit](.github/workflows/load-credit.yml) is scheduled at 07:17, 10:17 and
   13:17 UTC, Sunday-Thursday. These are 09:17/12:17/15:17 in Israel in winter,
   and 10:17/13:17/16:17 in summer. GitHub may delay or drop scheduled runs;

@@ -1,3 +1,5 @@
+const { isCreditWindowOpen } = require('./credit-test-window');
+
 function israelDate(value) {
     const parts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Asia/Jerusalem',
@@ -10,6 +12,10 @@ function israelDate(value) {
 }
 
 async function guardCreditRun({ github, context, core, now = new Date() }) {
+    if (!isCreditWindowOpen(now, context.payload?.schedule)) {
+        core.notice('Skipping credit loading: outside the authorized 2026-11-03 17:10-18:00 Israel test window.');
+        return false;
+    }
     const today = israelDate(now);
     const skipDates = (process.env.CREDIT_SKIP_DATES || '')
         .split(',').map(value => value.trim()).filter(Boolean);

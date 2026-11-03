@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const utils = require('./github-actions-utils');
+const creditWindow = require('./.github/scripts/credit-test-window');
 const TeamsWebhookNotifier = require('./teams-webhook-notifier');
 
 class GitHubCreditLoader {
@@ -89,6 +90,9 @@ class GitHubCreditLoader {
             
             // Make the API request
             // A timeout can occur after the payment was accepted; never replay it automatically.
+            if (!creditWindow.isCreditWindowOpen()) {
+                throw new Error('Payment not sent: outside the authorized 2026-11-03 17:10-18:00 Israel test window');
+            }
             const response = await utils.makeHttpRequest(requestOptions, 1);
             
             // Log successful response
